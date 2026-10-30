@@ -1,0 +1,56 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: dispatch
+      POSTGRES_USER: dispatch
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dispatch"]
+      interval: 5s
+      retries: 10
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+  migrate:
+    build: ./services/api
+    env_file: .env
+    environment: &api-env
+      DATABASE_URL: postgresql+psycopg://dispatch:${POSTGRES_PASSWORD}@db/dispatch
+      REDIS_URL: redis://redis:6379/0
+    command: ["sh", "-c", "python -m alembic upgrade head && python -m app.seed"]
+    depends_on:
+      db: {condition: service_healthy}
+  api:
+    build: ./services/api
+    env_file: .env
+    environment: *api-env
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      retries: 5
+  worker:
+    build: ./services/api
+    env_file: .env
+    environment: *api-env
+    command: ["python", "-m", "celery", "-A", "app.worker.worker", "worker", "--loglevel=INFO"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-m", "celery", "-A", "app.worker.worker", "inspect", "ping", "--timeout", "3"]
+      interval: 30s
+      retries: 3
+  web:
+    build: ./apps/web
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on:
+      api: {condition: service_healthy}
+volumes:
+  pgdata:

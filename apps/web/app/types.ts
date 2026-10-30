@@ -1,0 +1,9 @@
+export type Location={address:string;lat:number;lng:number;node:string|null};
+export type Order={id:string;location:Location;received_at:string;ready_at:string;actual_ready_at:string|null;earliest:string;deadline:string;status:string;kind:string;units:number;service_seconds:number;priority:number;instructions:string;delivered_at:string|null;picked_up_at:string|null};
+export type Driver={id:string;name:string;state:string;capacity:number;max_orders:number;max_trip_seconds:number;available_at:string;shift_end:string;waiter:boolean;authorised:boolean;return_by:string|null};
+export type Route={driver_id:string;order_ids:string[];departure:string;returns_at:string;travel_seconds:number;distance_metres:number;executable:boolean;warnings:string[];stops:{order_id:string;arrival:string;late_seconds:number}[]};
+export type Plan={id:string;revision:number;created_at:string;provider:string;routes:Route[];unassigned:Record<string,string>;solver:string;warnings:string[]};
+export type Trip={id:string;driver_id:string;status:string;route:Route;stops:{order_id:string;status:string;sequence:number}[]};
+export type Settings={name:string;depot:Location;loading_seconds:number;max_batch_wait:number;max_hold:number;max_transit:number;max_orders:number;solver_seconds:number;horizon_seconds:number;provider:'demo'|'google'};
+export type State={settings:Settings;orders:Order[];drivers:Driver[];revision:number;trips:Trip[];demo_nodes:Record<string,[number,number]>};
+export type User={id:string;role:string;driver_id:string|null};
